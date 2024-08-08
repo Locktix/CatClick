@@ -58,16 +58,29 @@ class AutoClickerApp:
             entry.insert(0, default)  # Set default value
             self.entries.append(entry)
 
+        # Mouse button dropdown
+        ttk.Label(self.root, text="Bouton de souris:", background=self.background_color, foreground=self.label_color).grid(row=2, column=0, padx=10, pady=10, sticky="e")
+        self.mouse_button_var = tk.StringVar()
+        self.mouse_button_var.set("Gauche")  # Default value
+        self.mouse_button_dropdown = ttk.Combobox(self.root, textvariable=self.mouse_button_var, values=["Gauche", "Droit", "Milieu"])
+        self.mouse_button_dropdown.grid(row=2, column=1, padx=10, pady=10, sticky="w")
+
+        # Click type dropdown
+        ttk.Label(self.root, text="Type de clic:", background=self.background_color, foreground=self.label_color).grid(row=2, column=2, padx=10, pady=10, sticky="e")
+        self.click_type_var = tk.StringVar()
+        self.click_type_var.set("Simple")  # Default value
+        self.click_type_dropdown = ttk.Combobox(self.root, textvariable=self.click_type_var, values=["Simple", "Double"])
+        self.click_type_dropdown.grid(row=2, column=3, padx=10, pady=10, sticky="w")
+
         # Control key
-        ttk.Label(self.root, text="Touche de contrôle:", background=self.background_color, foreground=self.label_color).grid(row=2, column=0, padx=10, pady=10, sticky="e")
+        ttk.Label(self.root, text="Touche de contrôle:", background=self.background_color, foreground=self.label_color).grid(row=3, column=0, padx=10, pady=10, sticky="e")
         self.control_key_label = ttk.Label(self.root, text="Non définie", background=self.background_color, foreground=self.label_color)
-        self.control_key_label.grid(row=2, column=1, padx=10, pady=10, sticky="w")
+        self.control_key_label.grid(row=3, column=1, padx=10, pady=10, sticky="w")
         self.control_key_button = ttk.Button(self.root, text="Définir touche de contrôle", command=self.set_control_key, style='TButton')
-        self.control_key_button.grid(row=2, column=2, padx=10, pady=10, sticky="ew")
+        self.control_key_button.grid(row=3, column=2, padx=10, pady=10, sticky="ew")
 
         # Status window
         self.create_status_window()
-
 
     def create_status_window(self):
         self.status_window = tk.Toplevel(self.root)
@@ -128,7 +141,10 @@ class AutoClickerApp:
             if self.button_coords and self.is_cursor_within_button():
                 time.sleep(self.interval)
                 continue
-            pyautogui.click()
+            if self.click_type_var.get() == "Double":
+                pyautogui.click(button=self.get_mouse_button())
+                time.sleep(self.interval)
+            pyautogui.click(button=self.get_mouse_button())
             time.sleep(self.interval)
 
     def is_cursor_within_button(self):
@@ -138,6 +154,15 @@ class AutoClickerApp:
         button_x1, button_y1, button_x2, button_y2 = self.button_coords
         return button_x1 <= x <= button_x2 and button_y1 <= y <= button_y2
     
+    def get_mouse_button(self):
+        button = self.mouse_button_var.get()
+        if button == "Gauche":
+            return "left"
+        elif button == "Droit":
+            return "right"
+        elif button == "Milieu":
+            return "middle"
+
     def set_control_key(self):
         if self.control_key:
             self.reset_key()
