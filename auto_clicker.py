@@ -49,11 +49,13 @@ class AutoClickerApp:
 
         # Labels and Entries
         labels = ["Heures:", "Minutes:", "Secondes:", "Millisecondes:"]
+        default_values = ["0", "0", "0", "1"]  # Default values, with 1 ms in the last entry
         self.entries = []
-        for i, text in enumerate(labels):
+        for i, (text, default) in enumerate(zip(labels, default_values)):
             ttk.Label(interval_frame, text=text, background=self.background_color, foreground=self.label_color).grid(row=0, column=i*2, padx=5, pady=5, sticky="e")
             entry = ttk.Entry(interval_frame, width=8)
             entry.grid(row=0, column=i*2+1, padx=5, pady=5, sticky="ew")
+            entry.insert(0, default)  # Set default value
             self.entries.append(entry)
 
         # Control key
@@ -65,6 +67,7 @@ class AutoClickerApp:
 
         # Status window
         self.create_status_window()
+
 
     def create_status_window(self):
         self.status_window = tk.Toplevel(self.root)
