@@ -5,6 +5,7 @@ import time
 import pyautogui
 import win32api
 import pynput.mouse as mouse
+import keyboard
 
 class AutoClickerApp:
     def __init__(self, root):
@@ -121,19 +122,19 @@ class AutoClickerApp:
 
     def auto_click(self):
         while self.running:
-            # Check if the cursor is over the "Définir touche de contrôle" button
             if self.button_coords and self.is_cursor_within_button():
                 time.sleep(self.interval)
                 continue
-            
             pyautogui.click()
             time.sleep(self.interval)
 
     def is_cursor_within_button(self):
+        if not self.button_coords:
+            return False
         x, y = win32api.GetCursorPos()
         button_x1, button_y1, button_x2, button_y2 = self.button_coords
         return button_x1 <= x <= button_x2 and button_y1 <= y <= button_y2
-
+    
     def set_control_key(self):
         if self.control_key:
             self.reset_key()
@@ -142,15 +143,37 @@ class AutoClickerApp:
         self.key_listener_active = True
         self.control_key_button.config(text="Réinitialiser la touche")
         self.button_coords = self.get_button_coords(self.control_key_button)  # Save button coordinates
+        self.root.bind("<KeyPress>", self.handle_key_press)
 
-        # Start mouse listener to handle additional mouse buttons
+        # Configure mouse listener
         if self.mouse_listener:
             self.mouse_listener.stop()
         self.mouse_listener = mouse.Listener(on_click=self.on_mouse_click)
         self.mouse_listener.start()
 
+    def handle_key_press(self, event):
+        if self.key_listener_active:
+            if event.keysym in keyboard.all_modifiers or event.keysym in ["Shift_L", "Shift_R", "Control_L", "Control_R", "Alt_L", "Alt_R"]:
+                messagebox.showerror("Erreur", "Les touches de modification ne sont pas autorisées.")
+                return
+
+            if self.control_key is None:
+                self.control_key = event.keysym
+                self.control_key_label.config(text=self.control_key)
+                self.key_listener_active = False
+                self.root.unbind("<KeyPress>")
+                self.setup_key_listeners()
+            else:
+                if event.keysym == self.control_key:
+                    if self.running:
+                        self.stop_clicker()
+                    else:
+                        if not any(entry.get() for entry in self.entries):
+                            messagebox.showerror("Erreur", "Intervalle non défini. Veuillez entrer les valeurs de l'intervalle.")
+                            return
+                        self.start_clicker()
+
     def get_button_coords(self, button):
-        # This function retrieves the button's screen coordinates
         button.update_idletasks()
         x1 = button.winfo_rootx()
         y1 = button.winfo_rooty()
@@ -206,6 +229,9 @@ class AutoClickerApp:
         self.control_key = None
         self.control_key_label.config(text="Non définie")
         self.control_key_button.config(text="Définir touche de contrôle")
+        keyboard.unhook_all_hotkeys()
+        if self.mouse_listener:
+            self.mouse_listener.stop()
 
     def toggle_clicker(self):
         if self.running:
