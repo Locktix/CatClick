@@ -11,13 +11,15 @@ class AutoClickerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Auto Clicker")
-        self.root.minsize(400, 250)
+        self.root.minsize(500, 300)
         self.running = False
         self.control_key = None
         self.key_listener_active = False
         self.click_thread = None
         self.button_coords = None
         self.mouse_listener = None
+        self.max_duration = None
+        self.start_time = None
 
         # Define styles
         style = ttk.Style()
@@ -79,6 +81,27 @@ class AutoClickerApp:
         self.control_key_button = ttk.Button(self.root, text="Définir touche de contrôle", command=self.set_control_key, style='TButton')
         self.control_key_button.grid(row=3, column=2, padx=10, pady=10, sticky="ew")
 
+        # Auto click infinite or with max duration
+        ttk.Label(self.root, text="Mode de clic:", background=self.background_color, foreground=self.label_color).grid(row=4, column=0, padx=10, pady=10, sticky="e")
+        self.click_mode_var = tk.StringVar()
+        self.click_mode_var.set("Infini")  # Default value
+        self.click_mode_dropdown = ttk.Combobox(self.root, textvariable=self.click_mode_var, values=["Infini", "Avec durée max"])
+        self.click_mode_dropdown.grid(row=4, column=1, padx=10, pady=10, sticky="w")
+
+        # Max duration frame
+        self.max_duration_frame = ttk.Frame(self.root)
+        self.max_duration_frame.grid(row=5, column=0, columnspan=8, padx=10, pady=5, sticky="nsew")
+        self.max_duration_frame.configure(style='TFrame')
+
+        # Labels and Entries for max duration
+        self.max_duration_entries = []
+        for i, text in enumerate(labels):
+            ttk.Label(self.max_duration_frame, text=text, background=self.background_color, foreground=self.label_color).grid(row=0, column=i*2, padx=5, pady=5, sticky="e")
+            entry = ttk.Entry(self.max_duration_frame, width=8)
+            entry.grid(row=0, column=i*2+1, padx=5, pady=5, sticky="ew")
+            entry.insert(0, "0")  # Default value
+            self.max_duration_entries.append(entry)
+
         # Status window
         self.create_status_window()
 
@@ -120,9 +143,22 @@ class AutoClickerApp:
             messagebox.showerror("Erreur", "Intervalle invalide. Veuillez entrer des valeurs numériques correctes.")
             return
 
+        if self.click_mode_var.get() == "Avec durée max":
+            try:
+                max_hours = int(self.max_duration_entries[0].get() or "0")
+                max_minutes = int(self.max_duration_entries[1].get() or "0")
+                max_seconds = int(self.max_duration_entries[2].get() or "0")
+                max_milliseconds = int(self.max_duration_entries[3].get() or "0")
+                self.max_duration = (max_hours * 3600 + max_minutes * 60 + max_seconds) + max_milliseconds / 1000
+            except ValueError:
+                messagebox.showerror("Erreur", "Durée maximale invalide. Veuillez entrer des valeurs numériques correctes.")
+                return
+
         self.running = True
-        if self.click_thread:
-            self.click_thread.join()
+        self.start_time = time.time()  # Save start time
+
+        if self.click_thread and self.click_thread.is_alive():
+            self.stop_clicker()  # Stop any existing click thread
 
         self.click_thread = threading.Thread(target=self.auto_click)
         self.click_thread.start()
@@ -132,12 +168,17 @@ class AutoClickerApp:
     def stop_clicker(self):
         self.running = False
         if self.click_thread:
+            # Wait for the click thread to finish
             self.click_thread.join()
         self.status_window.config(bg="red")
         self.canvas.itemconfig(self.circle, fill="red")
 
+
     def auto_click(self):
         while self.running:
+            if self.max_duration and (time.time() - self.start_time) >= self.max_duration:
+                self.stop_clicker()
+                break
             if self.button_coords and self.is_cursor_within_button():
                 time.sleep(self.interval)
                 continue
@@ -257,9 +298,14 @@ class AutoClickerApp:
         self.control_key = None
         self.control_key_label.config(text="Non définie")
         self.control_key_button.config(text="Définir touche de contrôle")
-        keyboard.unhook_all_hotkeys()
+        
+        # Try removing the specific hotkey instead of unhooking all hotkeys
+        if self.control_key:
+            keyboard.remove_hotkey(self.control_key)
+        
         if self.mouse_listener:
             self.mouse_listener.stop()
+
 
     def toggle_clicker(self):
         if self.running:
